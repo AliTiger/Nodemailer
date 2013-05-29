@@ -77,5 +77,5 @@ transport.sendMail(message, function(error){
     console.log('Message sent successfully!');
 
     // if you don't want to use this transport object anymore, uncomment following line
-    //transport.close(); // close the connection pool
+    transport.close(); // close the connection pool
 });
