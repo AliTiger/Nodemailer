@@ -182,6 +182,7 @@ Possible SMTP options are the following:
  * **ignoreTLS** - ignore server support for STARTTLS (defaults to `false`)
  * **debug** - output client and server messages to console
  * **maxConnections** - how many connections to keep in the pool (defaults to 5)
+ * **maxMessages** - limit the count of messages to send through a single connection (no limit by default)
 
 Example:
 
@@ -408,6 +409,7 @@ Currently supported services are:
   * **Mandrill**
   * **Postmark**
   * **QQ**
+  * **QQex** (Tencent Business Email)
   * **SendGrid**
   * **SES**
   * **Yahoo**
@@ -477,6 +479,7 @@ The following are the possible fields of an e-mail message:
   - **date** - optional Date value, current UTC string will be used if not set
   - **encoding** - optional transfer encoding for the textual parts (defaults to "quoted-printable")
   - **charset** - optional output character set for the textual parts (defaults to "utf-8")
+  - **dsn** - An object with methods `success`, `failure` and `delay`. If any of these are set to true, DSN will be used
 
 All text fields (e-mail addresses, plaintext body, html body) use UTF-8 as the encoding.
 Attachments are streamed as binary.
@@ -780,4 +783,8 @@ message composing/sending process you should look at the  appropriate module.
 ## License
 
 **Nodemailer** is licensed under [MIT license](https://github.com/andris9/Nodemailer/blob/master/LICENSE). Basically you can do whatever you want to with it.
+
+
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/andris9/nodemailer/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
 
