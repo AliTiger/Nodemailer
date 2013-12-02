@@ -20,7 +20,7 @@ Nodemailer is Windows friendly, you can install it with *npm* on Windows just li
   * **Attachments** (including attachment **streaming** for sending larger files)
   * **Embedded images** in HTML
   * **SSL/STARTTLS** for secure e-mail delivery
-  * Different transport methods - **SMTP**, **sendmail** and **Amazon SES**
+  * Different transport methods - **SMTP**, **sendmail**, **Amazon SES** or **directly** to recipients MX server
   * SMTP **Connection pool** and connection reuse for rapid delivery
   * **Preconfigured** services for using SMTP with Gmail, Hotmail etc.
   * Use objects as header values for **SendGrid** SMTP API
@@ -100,6 +100,21 @@ smtpTransport.sendMail(mailOptions, function(error, response){
 });
 ```
 
+Or if you want to go the really easy (but not the best) route, you can try to send e-mails directly to
+the recipients MX server without a relaying service:
+
+```javascript
+var mail = require("nodemailer").mail;
+
+mail({
+    from: "Fred Foo ✔ <foo@blurdybloop.com>", // sender address
+    to: "bar@blurdybloop.com, baz@blurdybloop.com", // list of receivers
+    subject: "Hello ✔", // Subject line
+    text: "Hello world ✔", // plaintext body
+    html: "<b>Hello world ✔</b>" // html body
+});
+```
+
 See also the [examples folder](https://github.com/andris9/Nodemailer/tree/master/examples)
 for full featured examples
 
@@ -157,11 +172,14 @@ transport.sendMail({
 
 ### Possible transport methods
 
-Required `type` parameter can be one of the following:
+`type` parameter can be one of the following:
 
   * **SMTP** for using SMTP
   * **SES** for using Amazon SES
   * **Sendmail** for utilizing systems *sendmail* command
+  * **Direct** for sending e-mails directly to recipients MTA servers
+
+If `type` is not set, "direct" will be used
 
 ### Setting up SMTP
 
@@ -321,7 +339,6 @@ Options object is optional, possible sendmail options are the following:
 
   * **path** - path to the `sendmail` command (defaults to *"sendmail"*)
   * **args** - an array of extra command line options to pass to the `sendmail` command (ie. `["-f", "foo@blurdybloop.com"]`).
-  * **noCR** - If set to true, the line ending character will be `\n` instead of the default `\r\n` ending.
 
 Currently the command to be spawned is built up like this: the command is either using `sendmail -i -f from_addr to_addr[]` (by default) or `sendmail -i list_of_args[]` (if `args` property was given). `-i` is ensured to be present on either case.
 
@@ -344,11 +361,44 @@ var transport = nodemailer.createTransport("sendmail", {
 });
 ```
 
-**Compatibility notice**
+Sendmail uses a Transform stream, which is available in NodeJS >= 0.10. For
+previous versions you can include [`readable-stream`](https://github.com/isaacs/readable-stream)
+in your depencies, which provides a polyfill.
 
-Some sendmail implementations require all line endings to be &lt;LF&gt;.  Set
-`noCR:true` in the options argument to circument this.
+### Setting up Direct transport
 
+*Direct* transport is useful when you can not or want not to use a relaying service or the sendmail command.
+
+To set it up, you do not need to provide anything, just run the following to create a transport object:
+
+```
+var transport = nodemailer.createTransport();
+```
+
+If you want to use debug logging, use the following form:
+
+```
+var transport = nodemailer.createTransport("direct", {debug: true});
+```
+
+There is also a shorthand method `mail` if you do not like to set up a transport object (see [E-mail message fields](#e-mail-message-fields) for options for the `mailOptions` object).
+
+```javascript
+var mail = require("nodemailer").mail;
+mail(mailOptions);
+```
+
+*Direct* can be quite inefficient as it queues all e-mails to be sent into memory. Additionally, if a message is not yet sent and the process is closed, all data about queued messages are lost. Thus *direct* is only suitable for low throughput systems, like password remainders and such, where the message can be processed immediatelly.
+
+*Direct* is able to handle sending errors, graylisting and such. If a message can not be sent, it is requeued and retried later.
+
+To raise the odds of getting your emails into recipients inboxes, you should setup [SPF records](http://en.wikipedia.org/wiki/Sender_Policy_Framework) for your domain. Using [DKIM](#dkim-signing) wouldn't hurt either. Dynamic IP addresses are frequently treated as spam sources, so using static IPs is advised.
+
+**When would you use Direct transport?**
+
+  * When prototyping your application
+  * If you do not have or do not want to use a relaying service account
+  * When running under Windows as a Sendmail replacement (by default Sendmail is not available in Windows)
 
 ### DKIM Signing
 
@@ -784,7 +834,4 @@ message composing/sending process you should look at the  appropriate module.
 
 **Nodemailer** is licensed under [MIT license](https://github.com/andris9/Nodemailer/blob/master/LICENSE). Basically you can do whatever you want to with it.
 
-
-
 [![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/andris9/nodemailer/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
-

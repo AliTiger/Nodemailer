@@ -1,7 +1,10 @@
 var testCase = require('nodeunit').testCase,
     nodemailer = require("../lib/nodemailer"),
     Transport = nodemailer.Transport,
-    stripHTML = require("../lib/helpers").stripHTML;
+    stripHTML = require("../lib/helpers").stripHTML,
+    fs = require("fs");
+
+var SENDMAIL_OUTPUT = "/tmp/nodemailer-sendmail-test";
 
 exports["General tests"] = {
 
@@ -136,7 +139,7 @@ exports["General tests"] = {
             test.ifError(error);
             test.ok(response.message.match(/^References:\s*<abc> <def> <ghi> <jkl>$/m));
             test.done();
-        })
+        });
     },
 
     "Skip Message-Id value": function(test){
@@ -182,6 +185,30 @@ exports["General tests"] = {
             test.deepEqual(response.envelope, {from:'sender1@tr.ee',to: [ 'receiver1@tr.ee' ],stamp: 'Postage paid, Par Avion'})
             test.done();
         })
+    },
+
+    "Default X-Mailer value": function(test){
+        var transport = nodemailer.createTransport("Stub"),
+            mailOptions = {};
+
+        transport.sendMail(mailOptions, function(error, response){
+            test.ifError(error);
+            test.ok(response.message.match(/^X\-Mailer: Nodemailer/im));
+            test.done();
+        });
+    },
+
+    "Custom X-Mailer value": function(test){
+        var transport = nodemailer.createTransport("Stub",{
+                xMailer: "TEST"
+            }),
+            mailOptions = {};
+
+        transport.sendMail(mailOptions, function(error, response){
+            test.ifError(error);
+            test.ok(response.message.match(/^X\-Mailer: TEST$/im));
+            test.done();
+        });
     }
 };
 
@@ -236,21 +263,49 @@ exports["Transport close"] = {
     }
 };
 
-exports["Options"] = {
-    "Sendmail - when noCR is set to 'true', sendMail should set 'noCR:true'":function(test){
-        var transport = nodemailer.createTransport("sendmail", {noCR:true});
-        var options = {transport:new Transport("stub")};
-        transport.sendMail(options, function(){
-            test.ok(options.noCR);
-            test.done();
-        });
+exports["Sendmail transport"] = {
+    "Path as string parameter": function(test){
+        var transport = nodemailer.createTransport("Sendmail", "test/mock/sendmail"),
+            mailOptions = {};
+
+        try{
+            fs.unlinkSync(SENDMAIL_OUTPUT);
+        }catch(E){};
+        transport.sendMail(mailOptions, function(error, response){
+            fs.readFile(SENDMAIL_OUTPUT, function(error, mail) {
+                try{
+                    fs.unlinkSync(SENDMAIL_OUTPUT);
+                }catch(E){
+                    test.ifError(E);
+                };
+                test.ok(mail.toString());
+                test.done();
+            })
+        })
     },
-    "SMTP - when noCR is set to 'true', sendMail should not set 'noCR:true'":function(test){
-        var transport = nodemailer.createTransport("smtp", {noCR:true});
-        var options = {transport:new Transport("stub")};
-        transport.sendMail(options, function(){
-            test.ok(!options.noCR);
-            test.done();
+
+    "Transform line endings": function(test){
+        var transport = nodemailer.createTransport("Sendmail", {path: "test/mock/sendmail"}),
+            mailOptions = {
+                html: "Lorem Ipsum is simply dummy text of the printing and typesetting industry."+
+                      "Lorem Ipsum has been the industry's standard dummy text ever since the 1500s."
+            };
+
+        try{
+            fs.unlinkSync(SENDMAIL_OUTPUT);
+        }catch(E){};
+        transport.sendMail(mailOptions, function(error, response){
+            fs.readFile(SENDMAIL_OUTPUT, function(error, mail) {
+
+                try{
+                    fs.unlinkSync(SENDMAIL_OUTPUT);
+                }catch(E){
+                    test.ifError(E);
+                };
+
+                test.ok(!/\r\n/.test(mail.toString()))
+                test.done();
+            })
         });
     }
 };
