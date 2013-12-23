@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.5.15 2013-12-13
+
+  * bumped version to v0.5.15
+  * Updated README, added global options info for setting uo transports [554bb0e5]
+  * Resolve public hostname, if resolveHostname property for a transport object is set to `true` [9023a6e1..4c66b819]
+
+## v0.5.14 2013-12-05
+
+  * bumped version to v0.5.14
+  * Expose status for direct messages [f0312df6]
+  * Allow to skip the X-Mailer header if xMailer value is set to 'false' [f2c20a68]
+
+## v0.5.13 2013-12-03
+
+  * bumped version to v0.5.13
+  * Use the name property from the transport object to use for the domain part of message-id values (1598eee9)
+
 ## v0.5.12 2013-12-02
 
   * bumped version to v0.5.12

@@ -181,6 +181,14 @@ transport.sendMail({
 
 If `type` is not set, "direct" will be used
 
+### Global transport options
+
+In addition to any specific configuration for a selected transport type, a few global
+ones exist.
+
+  * **resolveHostname** - if set to true, resolves the public hostname for the current machine (makes an external HTTP request to [remoteAddress.net](http://www.remoteaddress.net/) for resolving it). The value is used when generating `Message-ID` values (as the domain part) and when identifying itself to a SMTP server
+  * **xMailer** - if the value is a string it replaces the default `X-Mailer` header value. If the value is `false` then `X-Mailer` is stripped from the header
+
 ### Setting up SMTP
 
 SMTP is different from the other transport mechanisms, as in its case a connection
@@ -394,7 +402,54 @@ mail(mailOptions);
 
 To raise the odds of getting your emails into recipients inboxes, you should setup [SPF records](http://en.wikipedia.org/wiki/Sender_Policy_Framework) for your domain. Using [DKIM](#dkim-signing) wouldn't hurt either. Dynamic IP addresses are frequently treated as spam sources, so using static IPs is advised.
 
-**When would you use Direct transport?**
+#### Handling responses
+
+*Direct* exposes an event emitter for receiving status updates. If the message includes several recipients, the message
+is not sent to everyone at once but is sharded in chunks based on the domain name of the addresses. For example
+if your message includes the following recipients: *user1@example.com*, *user2@example.com* and *user3@blurdybloop.com*, then 2 separate messages are sent out - one for *user1@example.com* and *user2@example.com* and one for *user3@blurdybloop.com*. This means that sending to different recipients may succeed or fail independently. All information about messages being delivered, failed or requeued is emitted by the status emitter `statusHandler`.
+
+*Direct* exposes the following events:
+
+  * **'sent'** - message was sent successfully
+  * **'failed'** - message was failed permanently
+  * **'requeue'** - message failed but the error might not be permanent, so the message is requeued for later (once the message is retried an event is fired again).
+
+All events get the same argument which is an object with the following properties:
+
+  * **domain** - is the domain part of the e-mail addresses
+  * **response** - is the last line form the SMTP transmission
+
+**Usage example**
+
+```javascript
+transport.sendMail(messageOptions, function(error, response){
+    if(error){
+        console.log(error);
+        return;
+    }
+
+    // response.statusHandler only applies to 'direct' transport
+    response.statusHandler.once("failed", function(data){
+        console.log(
+          "Permanently failed delivering message to %s with the following response: %s",
+          data.domain, data.response);
+    });
+
+    response.statusHandler.once("requeue", function(data){
+        console.log("Temporarily failed delivering message to %s", data.domain);
+    });
+
+    response.statusHandler.once("sent", function(data){
+        console.log("Message was accepted by %s", data.domain);
+    });
+});
+```
+
+**NB!** If you want to provide instant feedback to the user, listen for the first `'sent'`, `'failed'`, or `'requeued'` event only. The first event should arrive quickly but once the message gets requeued, the delay until the next event for this particular domain is fired is at least 15 minutes.
+
+> This example uses `.once` for listening to the events which is ok if you have just one recipient. For several recipients with different domains, the events get called several times and thus would need a more complex handling.
+
+#### When would you use Direct transport?
 
   * When prototyping your application
   * If you do not have or do not want to use a relaying service account
@@ -792,6 +847,8 @@ Return callback gets two parameters
   * **error** - an error object if the message failed
   * **responseStatus** - an object with some information about the status on success
     * **responseStatus.messageId** - message ID used with the message
+
+> Different transport methods may expose additional properties to the `responseStatus` object, eg. *direct* transport exposes `statusHandler`, see the docs for the particular transport type for more info.
 
 Example:
 
